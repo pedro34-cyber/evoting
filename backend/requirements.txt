@@ -1,0 +1,13 @@
+fastapi[all]
+uvicorn[standard]
+SQLAlchemy>=1.4
+psycopg2-binary
+alembic
+python-dotenv
+pydantic
+passlib[argon2]
+python-jose[cryptography]
+cryptography
+pytest
+httpx
+opencv-python-headless
