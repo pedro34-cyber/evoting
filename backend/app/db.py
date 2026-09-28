@@ -5,9 +5,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@db:5432/sug_voting")
+# Default to a local sqlite file for developer convenience when DATABASE_URL is not set.
+# In production, set DATABASE_URL to a Postgres (or other) connection string via environment variables.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sug.db")
 
-engine = create_engine(DATABASE_URL, echo=False)
+# Use sqlite connect args when appropriate (required for some environments like FastAPI dev server)
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False}, echo=False)
+else:
+    engine = create_engine(DATABASE_URL, echo=False)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

@@ -11,3 +11,7 @@ cryptography
 pytest
 httpx
 opencv-python-headless
+slowapi
+deepface
+opencv-python-headless
+tf-keras

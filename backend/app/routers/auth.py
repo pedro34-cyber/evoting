@@ -38,10 +38,19 @@ def register(req: RegisterRequest, db_session=Depends(db.get_db)):
     }
 
 
+from fastapi import Request
+from ..rate_limiter import limiter
+from ..audit import log_action
+
 @router.post("/login")
-def login(req: LoginRequest, db_session=Depends(db.get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, req: LoginRequest, db_session=Depends(db.get_db)):
     student = crud.authenticate_student(db_session, req.registration_number, req.password)
     if not student:
+        # We can't log the student_id since it failed, but we log the attempt
+        log_action(db_session, "LOGIN_FAILED", request, target_resource=req.registration_number)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    log_action(db_session, "LOGIN_SUCCESS", request, student_id=student.id, target_resource=req.registration_number)
     token = security.create_access_token(subject=str(student.id))
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer", "is_admin": student.is_admin}

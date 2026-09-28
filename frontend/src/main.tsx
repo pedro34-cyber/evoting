@@ -7,6 +7,7 @@ import VerifyFirst from './pages/VerifyFirst'
 import Vote from './pages/Vote'
 import Review from './pages/Review'
 import Login from './pages/Login'
+import AdminDashboard from './pages/AdminDashboard'
 
 import './styles.css'
 
@@ -21,6 +22,7 @@ function App(){
         <Route path="/verify-first" element={<VerifyFirst/>} />
         <Route path="/vote" element={<Vote/>} />
         <Route path="/review" element={<Review/>} />
+        <Route path="/admin" element={<AdminDashboard/>} />
       </Routes>
     </BrowserRouter>
   )

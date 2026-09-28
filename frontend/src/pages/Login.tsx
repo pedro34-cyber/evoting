@@ -17,7 +17,11 @@ export default function Login() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Login failed')
       localStorage.setItem('access_token', data.access_token)
-      nav('/dashboard')
+      if (data.is_admin) {
+        nav('/admin')
+      } else {
+        nav('/dashboard')
+      }
     } catch (err: any) {
       alert('Login error: ' + err.message)
     }

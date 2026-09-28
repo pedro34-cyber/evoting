@@ -48,32 +48,43 @@ def create_voting_session(election_id: int, student_id: int):
     return {"voting_session_token": token, "expires_at": expires.isoformat()}
 
 
+from fastapi import Request
+from ..rate_limiter import limiter
+from ..audit import log_action
+
 @router.post("/elections/{election_id}/ballot/authorize")
-async def authorize_ballot(election_id: int, file: UploadFile = File(...), current_student = Depends(get_current_student)):
+@limiter.limit("3/minute")
+async def authorize_ballot(request: Request, election_id: int, file: UploadFile = File(...), current_student = Depends(get_current_student)):
     # Perform biometric verification using the biometric module for the authenticated student
     from .biometric import _verify_image_for_student_obj
     matched, score, reason = await _verify_image_for_student_obj(current_student, file)
+    session = next(db.get_db())
     if not matched:
+        log_action(session, "AUTHORIZATION_FAILED", request, student_id=current_student.id, target_resource=f"election_{election_id}", failure_reason=reason)
         raise HTTPException(status_code=403, detail=f"Verification failed: {reason}")
     # Issue one-time voting credential
-    session = next(db.get_db())
     token = secrets.token_urlsafe(32)
     expires = datetime.utcnow() + timedelta(minutes=5)
     vc = models.VotingCredential(election_id=election_id, student_id=current_student.id, status='issued', issued_at=datetime.utcnow(), expiration_time=expires, token_hash=hashlib.sha256(token.encode()).hexdigest())
     session.add(vc)
     session.commit()
     session.refresh(vc)
+    
+    log_action(session, "AUTHORIZATION_GRANTED", request, student_id=current_student.id, target_resource=f"election_{election_id}")
     return {"voting_token": token, "expires_at": expires.isoformat()}
 
 @router.post("/elections/{election_id}/ballot/cast")
-async def cast_ballot(election_id: int, voting_token: str, encrypted_ballot: str):
+@limiter.limit("3/minute")
+async def cast_ballot(request: Request, election_id: int, voting_token: str, encrypted_ballot: str):
     session = next(db.get_db())
     # Verify token
     token_hash = hashlib.sha256(voting_token.encode()).hexdigest()
     vc = session.query(models.VotingCredential).filter(models.VotingCredential.token_hash == token_hash).first()
     if not vc:
+        log_action(session, "VOTE_CAST_FAILED", request, target_resource=f"election_{election_id}", failure_reason="Invalid token")
         raise HTTPException(status_code=403, detail="Invalid voting token")
     if vc.status != 'issued' or (vc.expiration_time and vc.expiration_time < datetime.utcnow()):
+        log_action(session, "VOTE_CAST_FAILED", request, student_id=vc.student_id, target_resource=f"election_{election_id}", failure_reason="Token expired or used")
         raise HTTPException(status_code=403, detail="Voting token expired or used")
     # Prevent double voting: mark used and store ballot (anonymous)
     ballot = models.Ballot(election_id=election_id, encrypted_ballot=encrypted_ballot, cast_at=datetime.utcnow())
@@ -82,4 +93,5 @@ async def cast_ballot(election_id: int, voting_token: str, encrypted_ballot: str
     vc.used_at = datetime.utcnow()
     session.add(vc)
     session.commit()
+    log_action(session, "VOTE_CAST", request, student_id=vc.student_id, target_resource=f"election_{election_id}")
     return {"status": "cast", "ballot_id": ballot.id}

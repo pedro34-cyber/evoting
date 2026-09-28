@@ -39,3 +39,11 @@ def get_current_student(token: str = Depends(oauth2_scheme), db_session=Depends(
     if not student:
         raise credentials_exception
     return student
+
+def get_current_admin(student=Depends(get_current_student)):
+    if not student.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough privileges"
+        )
+    return student

@@ -12,6 +12,13 @@ def ensure_student_profile_image_column():
             return
         conn.execute(text('ALTER TABLE students ADD COLUMN profile_image TEXT'))
 
+def ensure_student_admin_column():
+    with engine.begin() as conn:
+        columns = inspect(conn).get_columns('students')
+        if any(column['name'] == 'is_admin' for column in columns):
+            return
+        conn.execute(text('ALTER TABLE students ADD COLUMN is_admin BOOLEAN DEFAULT 0'))
+
 
 def ensure_default_admin():
     db = SessionLocal()
@@ -20,6 +27,9 @@ def ensure_default_admin():
         admin_password = os.getenv("ADMIN_PASSWORD", "Admin@12345")
         existing = db.query(Student).filter(Student.registration_number == admin_reg).first()
         if existing:
+            if not existing.is_admin:
+                existing.is_admin = True
+                db.commit()
             return existing
 
         admin = Student(
@@ -27,6 +37,7 @@ def ensure_default_admin():
             registration_number=admin_reg,
             password_hash=argon2.hash(admin_password),
             account_status=AccountStatus.active,
+            is_admin=True
         )
         db.add(admin)
         db.commit()
@@ -40,6 +51,7 @@ def ensure_default_admin():
 def create_all():
     Base.metadata.create_all(bind=engine)
     ensure_student_profile_image_column()
+    ensure_student_admin_column()
     ensure_default_admin()
 
 

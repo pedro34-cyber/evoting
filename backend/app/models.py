@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 import enum
 import datetime
@@ -19,6 +19,7 @@ class Student(Base):
     profile_image = Column(Text, nullable=True)
     biometric_reference = Column(Text, nullable=True)
     account_status = Column(Enum(AccountStatus), default=AccountStatus.active)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -83,3 +84,12 @@ class VerificationEvent(Base):
     result = Column(String(32), nullable=False)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     failure_reason = Column(Text, nullable=True)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id'), nullable=True)
+    action = Column(String(128), nullable=False)
+    target_resource = Column(String(256), nullable=True)
+    ip_address = Column(String(64), nullable=True)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
