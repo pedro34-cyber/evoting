@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../components/BackButton'
 
@@ -22,6 +22,8 @@ export default function Registration() {
   const [form, setForm] = useState<FormState>(initialForm)
   const [streaming, setStreaming] = useState(false)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [capturePhase, setCapturePhase] = useState<'idle' | 'countdown' | 'holding' | 'captured'>('idle')
+  const [countdown, setCountdown] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
@@ -39,6 +41,19 @@ export default function Registration() {
     })
   }
 
+  useEffect(() => {
+    return () => {
+      const stream = videoRef.current?.srcObject as MediaStream | null
+      stream?.getTracks().forEach((track) => track.stop())
+    }
+  }, [])
+
+  function stopCamera() {
+    const stream = videoRef.current?.srcObject as MediaStream | null
+    stream?.getTracks().forEach((track) => track.stop())
+    setStreaming(false)
+  }
+
   function captureFrame() {
     if (!videoRef.current || !canvasRef.current) return
     const video = videoRef.current
@@ -50,35 +65,53 @@ export default function Registration() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
     const dataUrl = canvas.toDataURL('image/png')
     setCapturedImage(dataUrl)
+    setCapturePhase('captured')
     stopCamera()
   }
 
-  function retakeImage() {
-    setCapturedImage(null)
-    startCamera()
+  function runCountdown() {
+    setCapturePhase('countdown')
+    setCountdown(3)
+    let current = 3
+    
+    const interval = setInterval(() => {
+      current -= 1
+      if (current > 0) {
+        setCountdown(current)
+      } else {
+        clearInterval(interval)
+        setCountdown(null)
+        setCapturePhase('holding')
+        
+        setTimeout(() => {
+          captureFrame()
+        }, 2000)
+      }
+    }, 1000)
   }
 
-  async function startCamera() {
+  function startFaceCapture() {
     setError(null)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false,
-      })
+    setCapturedImage(null)
+    setCapturePhase('idle')
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: false,
+    }).then((stream) => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        await videoRef.current.play()
-        setStreaming(true)
+        videoRef.current.play().then(() => {
+          setStreaming(true)
+          runCountdown()
+        })
       }
-    } catch {
+    }).catch(() => {
       setError('Camera permission denied or not available.')
-    }
+    })
   }
 
-  function stopCamera() {
-    const stream = videoRef.current?.srcObject as MediaStream | null
-    stream?.getTracks().forEach((track) => track.stop())
-    setStreaming(false)
+  function retakeImage() {
+    startFaceCapture()
   }
 
   async function handleSubmit() {
@@ -167,7 +200,17 @@ export default function Registration() {
         if (Array.isArray(enrollData.detail)) {
           errMsg = enrollData.detail.map((d: any) => d.msg).join(', ')
         }
-        throw new Error(typeof errMsg === 'string' ? errMsg : 'Biometric enrollment failed.')
+        if (typeof errMsg === 'string') {
+          const lowerMsg = errMsg.toLowerCase()
+          if (lowerMsg.includes('no face')) {
+            throw new Error("We couldn't detect your face. Please try again.")
+          }
+          if (lowerMsg.includes('multiple face')) {
+            throw new Error("Please make sure only one face is visible.")
+          }
+          throw new Error(errMsg)
+        }
+        throw new Error('Biometric enrollment failed.')
       }
 
       localStorage.setItem('access_token', token)
@@ -253,11 +296,23 @@ export default function Registration() {
               <p className="text-sm text-[#d7c5b7]">Position your face inside the frame. Make sure your face is clearly visible.</p>
             </div>
 
-            <div className="mb-4 overflow-hidden rounded-xl border border-[#27413b] bg-black/90">
+            <div className="mb-4 relative overflow-hidden rounded-xl border border-[#27413b] bg-black/90">
               {capturedImage ? (
                 <img src={capturedImage} alt="Captured face" className="h-[320px] w-full object-cover bg-[#0a1110]" />
               ) : (
-                <video ref={videoRef} className="h-[320px] w-full object-cover bg-[#0a1110]" />
+                <>
+                  <video ref={videoRef} className="h-[320px] w-full object-cover bg-[#0a1110]" />
+                  {capturePhase === 'countdown' && countdown !== null && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <span className="text-6xl font-bold text-white drop-shadow-lg animate-pulse">{countdown}</span>
+                    </div>
+                  )}
+                  {capturePhase === 'holding' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <span className="text-2xl font-bold text-white drop-shadow-lg">Hold still...</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -270,32 +325,15 @@ export default function Registration() {
                 >
                   Retake Picture
                 </button>
-              ) : !streaming ? (
+              ) : (capturePhase === 'idle' || !streaming) ? (
                 <button
                   type="button"
-                  onClick={startCamera}
+                  onClick={startFaceCapture}
                   className="rounded-lg bg-[#b95d1d] px-4 py-2 text-sm font-medium text-white hover:bg-[#d36c2a]"
                 >
-                  Open Camera
+                  Start Face Capture
                 </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={captureFrame}
-                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-                  >
-                    Capture Frame
-                  </button>
-                  <button
-                    type="button"
-                    onClick={stopCamera}
-                    className="rounded-lg border border-[#27413b] bg-[#101d1b] px-4 py-2 text-sm font-medium text-white hover:border-[#b95d1d]"
-                  >
-                    Stop Camera
-                  </button>
-                </>
-              )}
+              ) : null}
             </div>
 
             <canvas ref={canvasRef} className="hidden" />
