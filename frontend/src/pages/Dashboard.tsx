@@ -22,7 +22,7 @@ export default function Dashboard() {
       return
     }
 
-    fetch('/api/student/profile', {
+    fetch((import.meta.env.VITE_API_URL || '') + '/api/student/profile', {
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -11,7 +11,7 @@ export default function Vote(){
   const nav = useNavigate()
 
   useEffect(()=>{
-    fetch('/api/elections/1/candidates')
+    fetch((import.meta.env.VITE_API_URL || '') + '/api/elections/1/candidates')
       .then(r=>r.json())
       .then(data => {
         setCandidates(data)

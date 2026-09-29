@@ -47,7 +47,7 @@ export default function VerifyFirst(){
       form.append('file', blob, 'capture.png')
       try{
         const token = localStorage.getItem('access_token')
-        const res = await fetch('/api/biometric/verify', { method: 'POST', body: form, headers: { 'Authorization': 'Bearer ' + token } })
+        const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/biometric/verify', { method: 'POST', body: form, headers: { 'Authorization': 'Bearer ' + token } })
         const data = await res.json()
         if(!res.ok) throw new Error(data.detail || 'Verify failed')
         if(data.matched){

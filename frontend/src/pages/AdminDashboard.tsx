@@ -23,7 +23,7 @@ export default function AdminDashboard() {
     const token = localStorage.getItem('access_token')
     if (!token) return nav('/login')
     try {
-      const res = await fetch('/api/admin/elections', {
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/admin/elections', {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) {

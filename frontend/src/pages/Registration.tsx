@@ -105,7 +105,7 @@ export default function Registration() {
       })
       const profileImage = await blobToDataUrl(blob)
 
-      const regRes = await fetch('/api/auth/register', {
+      const regRes = await fetch((import.meta.env.VITE_API_URL || '') + '/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -122,7 +122,7 @@ export default function Registration() {
         throw new Error(regData.detail || 'Registration failed.')
       }
 
-      const loginRes = await fetch('/api/auth/login', {
+      const loginRes = await fetch((import.meta.env.VITE_API_URL || '') + '/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -140,7 +140,7 @@ export default function Registration() {
       const formData = new FormData()
       formData.append('file', blob, 'enrollment.png')
 
-      const enrollRes = await fetch('/api/biometric/enroll', {
+      const enrollRes = await fetch((import.meta.env.VITE_API_URL || '') + '/api/biometric/enroll', {
         method: 'POST',
         body: formData,
         headers: {

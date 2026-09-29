@@ -39,14 +39,14 @@ export default function Review(){
         
         try{
           const token = localStorage.getItem('access_token')
-          const res = await fetch('/api/elections/1/ballot/authorize', { method: 'POST', body: form, headers: { 'Authorization': 'Bearer ' + token } })
+          const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/elections/1/ballot/authorize', { method: 'POST', body: form, headers: { 'Authorization': 'Bearer ' + token } })
           const data = await res.json()
           if(!res.ok) throw new Error(data.detail || 'Authorization failed. Please ensure your face is clearly visible.')
           
           const voting_token = data.voting_token
           const ballot = btoa(JSON.stringify(selections))
           
-          const res2 = await fetch('/api/elections/1/ballot/cast', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ voting_token, encrypted_ballot: ballot }) })
+          const res2 = await fetch((import.meta.env.VITE_API_URL || '') + '/api/elections/1/ballot/cast', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ voting_token, encrypted_ballot: ballot }) })
           const data2 = await res2.json()
           if(!res2.ok) throw new Error(data2.detail || 'Failed to cast ballot.')
           
