@@ -72,3 +72,52 @@ def get_election_results(request: Request, election_id: int, db_session: Session
         "valid_ballots": valid_ballots,
         "results": results
     }
+
+@router.get("/overview")
+@limiter.limit("10/minute")
+def get_overview(request: Request, db_session: Session = Depends(db.get_db), admin: models.Student = Depends(get_current_admin)):
+    total_students = db_session.query(models.Student).count()
+    total_elections = db_session.query(models.Election).count()
+    active_elections = db_session.query(models.Election).filter(models.Election.status == 'active').count()
+    total_ballots = db_session.query(models.Ballot).count()
+    
+    return {
+        "total_students": total_students,
+        "total_elections": total_elections,
+        "active_elections": active_elections,
+        "total_ballots_cast": total_ballots
+    }
+
+@router.get("/voters")
+@limiter.limit("10/minute")
+def get_voters(request: Request, db_session: Session = Depends(db.get_db), admin: models.Student = Depends(get_current_admin)):
+    students = db_session.query(models.Student).all()
+    # Don't expose passwords or biometric data
+    voters = [
+        {
+            "id": s.id,
+            "full_name": s.full_name,
+            "registration_number": s.registration_number,
+            "account_status": s.account_status,
+            "is_admin": s.is_admin,
+            "created_at": s.created_at.isoformat() if s.created_at else None
+        }
+        for s in students
+    ]
+    return voters
+
+@router.get("/system-status")
+@limiter.limit("10/minute")
+def get_system_status(request: Request, db_session: Session = Depends(db.get_db), admin: models.Student = Depends(get_current_admin)):
+    try:
+        # Simple DB check
+        db_session.query(models.Student).limit(1).all()
+        db_status = "OK"
+    except Exception:
+        db_status = "Error"
+    
+    return {
+        "status": "OK" if db_status == "OK" else "Degraded",
+        "database": db_status,
+        "version": "1.0.0"
+    }

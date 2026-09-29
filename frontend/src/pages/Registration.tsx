@@ -21,6 +21,7 @@ export default function Registration() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [form, setForm] = useState<FormState>(initialForm)
   const [streaming, setStreaming] = useState(false)
+  const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
@@ -36,6 +37,25 @@ export default function Registration() {
       reader.onerror = () => reject(new Error('Unable to read image data.'))
       reader.readAsDataURL(blob)
     })
+  }
+
+  function captureFrame() {
+    if (!videoRef.current || !canvasRef.current) return
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    canvas.width = video.videoWidth || 640
+    canvas.height = video.videoHeight || 480
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    const dataUrl = canvas.toDataURL('image/png')
+    setCapturedImage(dataUrl)
+    stopCamera()
+  }
+
+  function retakeImage() {
+    setCapturedImage(null)
+    startCamera()
   }
 
   async function startCamera() {
@@ -79,31 +99,16 @@ export default function Registration() {
       return
     }
 
-    if (!videoRef.current || !canvasRef.current) {
-      setError('Open your camera first before enrolling your face.')
+    if (!capturedImage) {
+      setError('Please capture your face before enrolling.')
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      const video = videoRef.current
-      const canvas = canvasRef.current
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        throw new Error('Canvas is unavailable.')
-      }
-      canvas.width = video.videoWidth || 640
-      canvas.height = video.videoHeight || 480
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((file) => {
-          if (!file) reject(new Error('Unable to capture image.'))
-          else resolve(file)
-        }, 'image/png')
-      })
-      const profileImage = await blobToDataUrl(blob)
+      const blob = await (await fetch(capturedImage)).blob()
+      const profileImage = capturedImage
 
       const regRes = await fetch((import.meta.env.VITE_API_URL || '') + '/api/auth/register', {
         method: 'POST',
@@ -119,7 +124,11 @@ export default function Registration() {
 
       const regData = await regRes.json().catch(() => ({ detail: 'Registration request failed.' }))
       if (!regRes.ok) {
-        throw new Error(regData.detail || 'Registration failed.')
+        let errMsg = regData.detail || 'Registration failed.'
+        if (Array.isArray(regData.detail)) {
+          errMsg = regData.detail.map((d: any) => d.msg).join(', ')
+        }
+        throw new Error(typeof errMsg === 'string' ? errMsg : 'Registration failed.')
       }
 
       const loginRes = await fetch((import.meta.env.VITE_API_URL || '') + '/api/auth/login', {
@@ -133,7 +142,11 @@ export default function Registration() {
 
       const loginData = await loginRes.json().catch(() => ({ detail: 'Login request failed.' }))
       if (!loginRes.ok) {
-        throw new Error(loginData.detail || 'Login failed.')
+        let errMsg = loginData.detail || 'Login failed.'
+        if (Array.isArray(loginData.detail)) {
+          errMsg = loginData.detail.map((d: any) => d.msg).join(', ')
+        }
+        throw new Error(typeof errMsg === 'string' ? errMsg : 'Login failed.')
       }
 
       const token = loginData.access_token
@@ -150,7 +163,11 @@ export default function Registration() {
 
       const enrollData = await enrollRes.json().catch(() => ({ detail: 'Biometric enrollment failed.' }))
       if (!enrollRes.ok) {
-        throw new Error(enrollData.detail || 'Biometric enrollment failed.')
+        let errMsg = enrollData.detail || 'Biometric enrollment failed.'
+        if (Array.isArray(enrollData.detail)) {
+          errMsg = enrollData.detail.map((d: any) => d.msg).join(', ')
+        }
+        throw new Error(typeof errMsg === 'string' ? errMsg : 'Biometric enrollment failed.')
       }
 
       localStorage.setItem('access_token', token)
@@ -237,11 +254,23 @@ export default function Registration() {
             </div>
 
             <div className="mb-4 overflow-hidden rounded-xl border border-[#27413b] bg-black/90">
-              <video ref={videoRef} className="h-[320px] w-full object-cover bg-[#0a1110]" />
+              {capturedImage ? (
+                <img src={capturedImage} alt="Captured face" className="h-[320px] w-full object-cover bg-[#0a1110]" />
+              ) : (
+                <video ref={videoRef} className="h-[320px] w-full object-cover bg-[#0a1110]" />
+              )}
             </div>
 
             <div className="mb-4 flex flex-wrap gap-3">
-              {!streaming ? (
+              {capturedImage ? (
+                <button
+                  type="button"
+                  onClick={retakeImage}
+                  className="rounded-lg border border-[#27413b] bg-[#101d1b] px-4 py-2 text-sm font-medium text-white hover:border-[#b95d1d]"
+                >
+                  Retake Picture
+                </button>
+              ) : !streaming ? (
                 <button
                   type="button"
                   onClick={startCamera}
@@ -250,13 +279,22 @@ export default function Registration() {
                   Open Camera
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={stopCamera}
-                  className="rounded-lg border border-[#27413b] bg-[#101d1b] px-4 py-2 text-sm font-medium text-white hover:border-[#b95d1d]"
-                >
-                  Stop Camera
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={captureFrame}
+                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                  >
+                    Capture Frame
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className="rounded-lg border border-[#27413b] bg-[#101d1b] px-4 py-2 text-sm font-medium text-white hover:border-[#b95d1d]"
+                  >
+                    Stop Camera
+                  </button>
+                </>
               )}
             </div>
 
