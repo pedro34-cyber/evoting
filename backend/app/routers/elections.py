@@ -73,13 +73,19 @@ async def authorize_ballot(request: Request, election_id: int, file: UploadFile 
     log_action(session, "AUTHORIZATION_GRANTED", request, student_id=current_student.id, target_resource=f"election_{election_id}")
     return {"voting_token": token, "expires_at": expires.isoformat()}
 
+from pydantic import BaseModel
+
+class CastBallotRequest(BaseModel):
+    voting_token: str
+    encrypted_ballot: str
+
 @router.post("/elections/{election_id}/ballot/cast")
 @limiter.limit("3/minute")
-async def cast_ballot(request: Request, election_id: int, voting_token: str, encrypted_ballot: str):
+async def cast_ballot(request: Request, election_id: int, body: CastBallotRequest):
     session = next(db.get_db())
     # Verify token
-    token_hash = hashlib.sha256(voting_token.encode()).hexdigest()
-    vc = session.query(models.VotingCredential).filter(models.VotingCredential.token_hash == token_hash).first()
+    token_hash = hashlib.sha256(body.voting_token.encode()).hexdigest()
+    vc = session.query(models.VotingCredential).filter(models.VotingCredential.token_hash == token_hash).with_for_update().first()
     if not vc:
         log_action(session, "VOTE_CAST_FAILED", request, target_resource=f"election_{election_id}", failure_reason="Invalid token")
         raise HTTPException(status_code=403, detail="Invalid voting token")
@@ -87,7 +93,7 @@ async def cast_ballot(request: Request, election_id: int, voting_token: str, enc
         log_action(session, "VOTE_CAST_FAILED", request, student_id=vc.student_id, target_resource=f"election_{election_id}", failure_reason="Token expired or used")
         raise HTTPException(status_code=403, detail="Voting token expired or used")
     # Prevent double voting: mark used and store ballot (anonymous)
-    ballot = models.Ballot(election_id=election_id, encrypted_ballot=encrypted_ballot, cast_at=datetime.utcnow())
+    ballot = models.Ballot(election_id=election_id, encrypted_ballot=body.encrypted_ballot, cast_at=datetime.utcnow())
     session.add(ballot)
     vc.status = 'used'
     vc.used_at = datetime.utcnow()
