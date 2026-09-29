@@ -22,7 +22,7 @@ export default function Registration() {
   const [form, setForm] = useState<FormState>(initialForm)
   const [streaming, setStreaming] = useState(false)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
-  const [capturePhase, setCapturePhase] = useState<'idle' | 'countdown' | 'holding' | 'captured'>('idle')
+  const [capturePhase, setCapturePhase] = useState<'idle' | 'streaming' | 'countdown' | 'captured'>('idle')
   const [countdown, setCountdown] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -81,16 +81,12 @@ export default function Registration() {
       } else {
         clearInterval(interval)
         setCountdown(null)
-        setCapturePhase('holding')
-        
-        setTimeout(() => {
-          captureFrame()
-        }, 2000)
+        captureFrame()
       }
     }, 1000)
   }
 
-  function startFaceCapture() {
+  function startCamera() {
     setError(null)
     setCapturedImage(null)
     setCapturePhase('idle')
@@ -102,7 +98,7 @@ export default function Registration() {
         videoRef.current.srcObject = stream
         videoRef.current.play().then(() => {
           setStreaming(true)
-          runCountdown()
+          setCapturePhase('streaming')
         })
       }
     }).catch(() => {
@@ -111,7 +107,7 @@ export default function Registration() {
   }
 
   function retakeImage() {
-    startFaceCapture()
+    startCamera()
   }
 
   async function handleSubmit() {
@@ -246,7 +242,7 @@ export default function Registration() {
                   value={form.full_name}
                   onChange={(e) => updateField('full_name', e.target.value)}
                   className="mt-1 w-full rounded-lg border border-[#27413b] bg-[#0d1715] px-3 py-2 text-white"
-                  placeholder="Victor Odhiambo"
+                  placeholder="Enter your full name"
                 />
               </label>
 
@@ -256,7 +252,7 @@ export default function Registration() {
                   value={form.registration_number}
                   onChange={(e) => updateField('registration_number', e.target.value)}
                   className="mt-1 w-full rounded-lg border border-[#27413b] bg-[#0d1715] px-3 py-2 text-white"
-                  placeholder="SUG2027001"
+                  placeholder="Enter your registration number"
                 />
               </label>
 
@@ -298,18 +294,18 @@ export default function Registration() {
 
             <div className="mb-4 relative overflow-hidden rounded-xl border border-[#27413b] bg-black/90">
               {capturedImage ? (
-                <img src={capturedImage} alt="Captured face" className="h-[320px] w-full object-cover bg-[#0a1110]" />
+                <>
+                  <img src={capturedImage} alt="Captured face" className="h-[320px] w-full object-cover bg-[#0a1110]" />
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded bg-green-500/90 px-4 py-1.5 text-sm font-bold text-white shadow-lg backdrop-blur-sm">
+                    Face captured successfully.
+                  </div>
+                </>
               ) : (
                 <>
                   <video ref={videoRef} className="h-[320px] w-full object-cover bg-[#0a1110]" />
                   {capturePhase === 'countdown' && countdown !== null && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                       <span className="text-6xl font-bold text-white drop-shadow-lg animate-pulse">{countdown}</span>
-                    </div>
-                  )}
-                  {capturePhase === 'holding' && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                      <span className="text-2xl font-bold text-white drop-shadow-lg">Hold still...</span>
                     </div>
                   )}
                 </>
@@ -325,13 +321,21 @@ export default function Registration() {
                 >
                   Retake Picture
                 </button>
-              ) : (capturePhase === 'idle' || !streaming) ? (
+              ) : capturePhase === 'idle' ? (
                 <button
                   type="button"
-                  onClick={startFaceCapture}
+                  onClick={startCamera}
                   className="rounded-lg bg-[#b95d1d] px-4 py-2 text-sm font-medium text-white hover:bg-[#d36c2a]"
                 >
-                  Start Face Capture
+                  Open Camera
+                </button>
+              ) : capturePhase === 'streaming' ? (
+                <button
+                  type="button"
+                  onClick={runCountdown}
+                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                >
+                  Capture
                 </button>
               ) : null}
             </div>
@@ -341,7 +345,7 @@ export default function Registration() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !capturedImage}
               className="w-full rounded-lg bg-[#123c32] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[#0d2a24]"
             >
               {isSubmitting ? 'Registering...' : 'Register & Enroll'}
