@@ -9,16 +9,18 @@ def profile(current_student = Depends(get_current_student)):
     # Return safe student info (never return biometric template)
     return {
         'id': current_student.id,
+        'is_admin': current_student.is_admin,
         'full_name': current_student.full_name,
+        'email': current_student.email,
         'registration_number': current_student.registration_number,
         'account_status': current_student.account_status,
         'profile_image': current_student.profile_image,
+        'has_enrolled': bool(current_student.biometric_reference),
         'created_at': current_student.created_at,
     }
 
 @router.get('/student/voting-status')
-def voting_status(election_id: int, current_student = Depends(get_current_student)):
-    session = next(db.get_db())
+def voting_status(election_id: int, current_student = Depends(get_current_student), session=Depends(db.get_db)):
     # If the student has a used voting credential for the election, they have voted
     vc = session.query(models.VotingCredential).filter(models.VotingCredential.election_id == election_id, models.VotingCredential.student_id == current_student.id, models.VotingCredential.status == 'used').first()
     if vc:

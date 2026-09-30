@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react'
+import { errorMessage, networkMessage, responseData, imageUrl } from '../lib/api'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../components/BackButton'
 
@@ -9,6 +10,8 @@ export default function VerifyFirst(){
   const [error, setError] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
   const nav = useNavigate()
+
+  useEffect(() => () => { const stream = videoRef.current?.srcObject as MediaStream; stream?.getTracks().forEach(t => t.stop()) }, [])
 
   async function startCamera(){
     setError(null)
@@ -49,8 +52,9 @@ export default function VerifyFirst(){
         const token = localStorage.getItem('access_token')
         const res = await fetch((import.meta.env.VITE_API_URL || '') + '/api/biometric/verify', { method: 'POST', body: form, headers: { 'Authorization': 'Bearer ' + token } })
         const data = await res.json()
-        if(!res.ok) throw new Error(data.detail || 'Verify failed')
+        if(!res.ok) throw new Error(errorMessage(data.detail, 'Verify failed'))
         if(data.matched){
+          stopCamera()
           nav('/vote')
         }else{
           setError('Face verification failed: '+(data.reason||''))

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from ..security import get_current_student
-from .. import db, crud
+from .. import db, crud, models
 from dotenv import load_dotenv
 import os
 import cv2
@@ -72,13 +72,14 @@ def extract_face_feature(img: np.ndarray):
     return feature
 
 @router.post("/enroll")
-async def enroll(file: UploadFile = File(...), current_student = Depends(get_current_student)):
+async def enroll(file: UploadFile = File(...), current_student = Depends(get_current_student), session=Depends(db.get_db)):
     """
     Authenticated endpoint: accepts an uploaded image file, performs face detection, ensures exactly one face,
     and stores an encrypted face representation on the authenticated student record.
     """
-    session = next(db.get_db())
-    student = current_student
+    student = session.query(models.Student).filter_by(id=current_student.id).with_for_update().first()
+    if student.biometric_reference:
+        raise HTTPException(409, "Face is already enrolled.")
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
@@ -86,7 +87,9 @@ async def enroll(file: UploadFile = File(...), current_student = Depends(get_cur
     if not biometric_key:
         raise HTTPException(status_code=500, detail="Biometric encryption key not configured")
 
-    contents = await file.read()
+    contents = await file.read(5 * 1024 * 1024 + 1)
+    if not contents or len(contents) > 5 * 1024 * 1024 or file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(400, "Please upload a valid JPG, PNG, or WEBP image smaller than 5MB.")
     nparr = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if img is None:
@@ -98,7 +101,7 @@ async def enroll(file: UploadFile = File(...), current_student = Depends(get_cur
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Extraction error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error during face extraction")
+        raise HTTPException(status_code=500, detail="Unable to process this face photo. Please try a clear image or contact support.")
 
     # Serialize feature to bytes, then base64
     feature_bytes = feature.tobytes()
@@ -110,7 +113,8 @@ async def enroll(file: UploadFile = File(...), current_student = Depends(get_cur
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to encrypt biometric template")
 
-    crud.store_biometric_reference(session, student.id, token)
+    if not crud.store_biometric_reference(session, student.id, token):
+        raise HTTPException(409, "Face is already enrolled.")
 
     return {"status": "enrolled", "student_id": student.id}
 
@@ -119,6 +123,7 @@ async def _verify_image_for_student_obj(student_obj, file: UploadFile):
     if not student_obj or not student_obj.biometric_reference:
         return False, 0.0, 'no template'
         
+    BIOMETRIC_KEY = os.getenv("BIOMETRIC_ENCRYPTION_KEY", "").strip()
     if not BIOMETRIC_KEY:
         return False, 0.0, 'Biometric encryption key not configured'
 
@@ -134,7 +139,9 @@ async def _verify_image_for_student_obj(student_obj, file: UploadFile):
         return False, 0.0, 'template decrypt error'
 
     # Read uploaded image
-    contents = await file.read()
+    contents = await file.read(5 * 1024 * 1024 + 1)
+    if not contents or len(contents) > 5 * 1024 * 1024 or file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(400, "Please upload a valid JPG, PNG, or WEBP image smaller than 5MB.")
     nparr = np.frombuffer(contents, np.uint8)
     probe_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if probe_img is None:
@@ -166,11 +173,10 @@ async def _verify_image_for_student_obj(student_obj, file: UploadFile):
 
 
 @router.post('/verify')
-async def verify(file: UploadFile = File(...), current_student = Depends(get_current_student)):
+async def verify(file: UploadFile = File(...), current_student = Depends(get_current_student), session=Depends(db.get_db)):
     matched, score, reason = await _verify_image_for_student_obj(current_student, file)
     try:
         from ..crud_extra import record_verification_event
-        session = next(db.get_db())
         record_verification_event(session, current_student.id, None, 'verification', 'success' if matched else 'failure', reason if not matched else None)
     except Exception as e:
         logger.error(f"Failed to record verification event: {e}")

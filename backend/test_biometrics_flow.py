@@ -3,6 +3,8 @@ import json
 import time
 import os
 
+__test__ = False
+
 BASE_URL = "http://localhost:8001/api"
 
 def get_db_token(student_id="123456"):

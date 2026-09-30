@@ -33,10 +33,11 @@ def get_current_student(token: str = Depends(oauth2_scheme), db_session=Depends(
         sub = payload.get("sub")
         if sub is None:
             raise credentials_exception
-    except JWTError:
+        student_id = int(sub)
+    except (JWTError, ValueError, TypeError):
         raise credentials_exception
-    student = crud.get_student(db_session, int(sub))
-    if not student:
+    student = crud.get_student(db_session, student_id)
+    if not student or student.account_status != "active":
         raise credentials_exception
     return student
 

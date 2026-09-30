@@ -5,6 +5,9 @@ import urllib.request
 import cv2
 import numpy as np
 
+__test__ = False
+
+
 def get_ram():
     return psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
 

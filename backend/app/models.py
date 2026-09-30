@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Enum, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Enum, Boolean, Float
 from sqlalchemy.orm import declarative_base, relationship
 import enum
 import datetime
@@ -14,6 +14,7 @@ class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String(256), nullable=False)
+    email = Column(String(255), unique=True, nullable=True, index=True)
     registration_number = Column(String(64), unique=True, nullable=False, index=True)
     password_hash = Column(String(256), nullable=False)
     profile_image = Column(Text, nullable=True)
@@ -48,9 +49,12 @@ class Candidate(Base):
     id = Column(Integer, primary_key=True)
     election_id = Column(Integer, ForeignKey('elections.id'), nullable=False)
     position_id = Column(Integer, ForeignKey('positions.id'), nullable=False)
-    name = Column(String(256), nullable=False)
+    full_name = Column(String(256), nullable=True)
+    name = Column(String(256), nullable=True)
     manifesto = Column(Text, nullable=True)
     photo = Column(String(512), nullable=True)
+    cgpa = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
     election = relationship('Election', backref='candidates')
     position = relationship('Position', backref='candidates')
 

@@ -1,5 +1,8 @@
+import os
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 # slowapi (rate limiting) is optional for local development. Import if available,
 # otherwise proceed without middleware/handlers so the server can run.
 try:
@@ -18,6 +21,11 @@ from .create_db import create_all
 from .rate_limiter import limiter
 
 app = FastAPI(title="SUG Voting Backend")
+
+UPLOAD_ROOT = Path(__file__).resolve().parent / "static" / "uploads"
+UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+(candidate_dir := (UPLOAD_ROOT / "candidates")).mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_ROOT)), name="uploads")
 
 # Attach limiter if slowapi is available; otherwise limiter is a no-op fallback.
 app.state.limiter = limiter
@@ -43,6 +51,10 @@ if slowapi_available and SlowAPIMiddleware:
     app.add_middleware(SlowAPIMiddleware)
 
 app.include_router(api_router, prefix="/api")
+
+# Ensure the SQLite schema is migrated as soon as the app module is imported so tests and
+# local runs do not hit stale databases that are missing recently-added columns such as email.
+create_all()
 
 @app.on_event("startup")
 def on_startup():

@@ -12,3 +12,23 @@ test_faces/
 venv/
 
 frontend/dist/
+
+backend/app/static/uploads/
+
+# Generated runtime, build, and test artifacts
+*.pyo
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3-*
+*.log
+*.pid
+*.tsbuildinfo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+.vite/
