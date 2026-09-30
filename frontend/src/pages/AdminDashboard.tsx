@@ -140,7 +140,7 @@ export default function AdminDashboard() {
                   </div>
                 ))}
                 {elections.length === 0 && (
-                  <div className="text-[#9db4ad] py-4 col-span-full">No elections found.</div>
+                  <div className="text-[#9db4ad] py-4 col-span-full">No active election</div>
                 )}
               </div>
             </div>
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
                     </tr>
                   ))}
                   {voters.length === 0 && (
-                    <tr><td colSpan={5} className="py-4 text-center text-[#9db4ad]">No voters found.</td></tr>
+                    <tr><td colSpan={5} className="py-4 text-center text-[#9db4ad]">No registered students yet</td></tr>
                   )}
                 </tbody>
               </table>
@@ -216,30 +216,34 @@ export default function AdminDashboard() {
                     </div>
                     <div className="bg-[#0d1715] p-6 rounded-3xl border border-[#1d2c29]">
                       <h2 className="text-xl font-bold text-white mb-6">Live Results: {results.election_name}</h2>
-                      {Object.values(results.results).map((pos: any, idx: number) => (
-                        <div key={idx} className="mb-8 last:mb-0">
-                          <h3 className="text-lg font-bold text-[#d7c5b7] mb-4 border-b border-[#27413b] pb-2">
-                            {pos.position_name}
-                          </h3>
-                          <div className="space-y-4">
-                            {Object.values(pos.candidates).sort((a: any, b: any) => b.votes - a.votes).map((cand: any, cidx: number) => {
-                              const total = results.valid_ballots || 1;
-                              const pct = Math.round((cand.votes / total) * 100);
-                              return (
-                                <div key={cidx} className="bg-[#101d1b] p-4 rounded-xl border border-[#27413b]">
-                                  <div className="flex justify-between items-end mb-2">
-                                    <div className="font-semibold text-white text-lg">{cand.name}</div>
-                                    <div className="text-[#b95d1d] font-bold text-xl">{cand.votes} votes <span className="text-sm text-[#9db4ad] font-normal">({pct}%)</span></div>
+                      {results.total_ballots === 0 ? (
+                        <div className="text-[#9db4ad] py-4">No votes have been cast yet</div>
+                      ) : (
+                        Object.values(results.results).map((pos: any, idx: number) => (
+                          <div key={idx} className="mb-8 last:mb-0">
+                            <h3 className="text-lg font-bold text-[#d7c5b7] mb-4 border-b border-[#27413b] pb-2">
+                              {pos.position_name}
+                            </h3>
+                            <div className="space-y-4">
+                              {Object.values(pos.candidates).sort((a: any, b: any) => b.votes - a.votes).map((cand: any, cidx: number) => {
+                                const total = results.valid_ballots || 1;
+                                const pct = Math.round((cand.votes / total) * 100);
+                                return (
+                                  <div key={cidx} className="bg-[#101d1b] p-4 rounded-xl border border-[#27413b]">
+                                    <div className="flex justify-between items-end mb-2">
+                                      <div className="font-semibold text-white text-lg">{cand.name}</div>
+                                      <div className="text-[#b95d1d] font-bold text-xl">{cand.votes} votes <span className="text-sm text-[#9db4ad] font-normal">({pct}%)</span></div>
+                                    </div>
+                                    <div className="h-2 w-full bg-[#1a2c29] rounded-full overflow-hidden">
+                                      <div className="h-full bg-[#b95d1d] transition-all duration-1000" style={{ width: `${pct}%` }}></div>
+                                    </div>
                                   </div>
-                                  <div className="h-2 w-full bg-[#1a2c29] rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#b95d1d] transition-all duration-1000" style={{ width: `${pct}%` }}></div>
-                                  </div>
-                                </div>
-                              )
-                            })}
+                                )
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </>
                 ) : (

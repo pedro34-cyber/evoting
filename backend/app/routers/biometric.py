@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 load_dotenv()
 
-BIOMETRIC_KEY = os.getenv("BIOMETRIC_ENCRYPTION_KEY")
+BIOMETRIC_KEY = os.getenv("BIOMETRIC_ENCRYPTION_KEY") or os.getenv("BIOMETRIC_KEY")
 
 router = APIRouter()
 

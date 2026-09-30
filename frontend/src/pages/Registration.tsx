@@ -252,7 +252,7 @@ export default function Registration() {
                   value={form.registration_number}
                   onChange={(e) => updateField('registration_number', e.target.value)}
                   className="mt-1 w-full rounded-lg border border-[#27413b] bg-[#0d1715] px-3 py-2 text-white"
-                  placeholder="Enter your registration number"
+                  placeholder="Enter your student registration number"
                 />
               </label>
 
@@ -263,7 +263,7 @@ export default function Registration() {
                   value={form.password}
                   onChange={(e) => updateField('password', e.target.value)}
                   className="mt-1 w-full rounded-lg border border-[#27413b] bg-[#0d1715] px-3 py-2 text-white"
-                  placeholder="At least 8 characters"
+                  placeholder="Create a password"
                 />
               </label>
 
