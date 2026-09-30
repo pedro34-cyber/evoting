@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 load_dotenv()
 
-BIOMETRIC_KEY = os.getenv("BIOMETRIC_ENCRYPTION_KEY")
+
 
 router = APIRouter()
 
@@ -82,7 +82,8 @@ async def enroll(file: UploadFile = File(...), current_student = Depends(get_cur
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    if not BIOMETRIC_KEY:
+    biometric_key = os.environ.get("BIOMETRIC_ENCRYPTION_KEY")
+    if not biometric_key:
         raise HTTPException(status_code=500, detail="Biometric encryption key not configured")
 
     contents = await file.read()
@@ -104,7 +105,7 @@ async def enroll(file: UploadFile = File(...), current_student = Depends(get_cur
     feature_b64 = base64.b64encode(feature_bytes).decode('utf-8')
 
     try:
-        f = Fernet(BIOMETRIC_KEY.encode())
+        f = Fernet(biometric_key.strip().encode())
         token = f.encrypt(feature_b64.encode()).decode()
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to encrypt biometric template")

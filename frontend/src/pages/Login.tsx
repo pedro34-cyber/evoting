@@ -44,7 +44,7 @@ export default function Login() {
             value={reg}
             onChange={(e) => setReg(e.target.value)}
             className="w-full rounded-xl border border-[#27413b] bg-[#101d1b] px-3 py-2 text-white placeholder:text-[#9db4ad]"
-            placeholder="ADMIN001 or your reg number"
+            placeholder="Enter your registration number"
           />
         </div>
         <div className="mb-5">

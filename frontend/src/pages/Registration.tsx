@@ -96,10 +96,7 @@ export default function Registration() {
     }).then((stream) => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        videoRef.current.play().then(() => {
-          setStreaming(true)
-          setCapturePhase('streaming')
-        })
+        // Don't call play() directly, rely on autoPlay, and set state in onPlaying
       }
     }).catch(() => {
       setError('Camera permission denied or not available.')
@@ -302,7 +299,17 @@ export default function Registration() {
                 </>
               ) : (
                 <>
-                  <video ref={videoRef} className="h-[320px] w-full object-cover bg-[#0a1110]" />
+                  <video 
+                    ref={videoRef} 
+                    className="h-[320px] w-full object-cover bg-[#0a1110]" 
+                    playsInline 
+                    autoPlay 
+                    muted 
+                    onPlaying={() => {
+                      setStreaming(true)
+                      setCapturePhase('streaming')
+                    }}
+                  />
                   {capturePhase === 'countdown' && countdown !== null && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                       <span className="text-6xl font-bold text-white drop-shadow-lg animate-pulse">{countdown}</span>
